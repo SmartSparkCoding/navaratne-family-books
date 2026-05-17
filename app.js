@@ -12,6 +12,8 @@ import {
 const appConfig = window.APP_CONFIG ?? {};
 const firebaseConfig = appConfig.firebase ?? {};
 const expectedPasscode = String(appConfig.passcode ?? "0000");
+const hackclubSearchApiKey = String(appConfig.hackclubSearchApiKey ?? appConfig.searchApiKey ?? appConfig.imageSearchApiKey ?? "").trim();
+const hackclubSearchBaseUrl = String(appConfig.hackclubSearchBaseUrl ?? "https://search.hackclub.com").replace(/\/$/, "");
 
 const readerNames = ["Sarah", "Leroy", "Jacob", "Ollie", "Grannie"];
 const defaultBookcases = [];
@@ -889,6 +891,7 @@ function createBookForm(mode) {
   const resetButton = template.querySelector("[data-reset-form]");
   const coverInput = form.elements.coverImage;
   const coverPreview = template.querySelector("[data-cover-preview]");
+  const autoFindCoverButton = template.querySelector("[data-auto-find-cover]");
 
   kicker.textContent = mode === "edit" ? "Edit book" : "New record";
   title.textContent = mode === "edit" ? "Change every detail" : "Create a new book entry";
@@ -903,6 +906,13 @@ function createBookForm(mode) {
   renderBookcaseOptions(form);
   ["author", "series", "genre"].forEach((field) => renderChoiceOptions(form, field));
 
+  if (autoFindCoverButton) {
+    autoFindCoverButton.disabled = !hackclubSearchApiKey;
+    autoFindCoverButton.title = hackclubSearchApiKey
+      ? "Use Hack Club image search to find a cover from the book title and author."
+      : "Set HACKCLUB_SEARCH_API_KEY in .env to enable automatic cover finding.";
+  }
+
   shell.insertAdjacentHTML(
     "afterbegin",
     `<div class="form-topline"><button class="secondary-btn" type="button" data-back-to-add>Back to Add</button></div>`,
@@ -914,6 +924,12 @@ function createBookForm(mode) {
       updateCoverPreview(coverPreview, "", form.elements.name.value);
     }
   });
+
+  if (autoFindCoverButton) {
+    autoFindCoverButton.addEventListener("click", async () => {
+      await autoFindBookCover(form, coverPreview, autoFindCoverButton);
+    });
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1228,6 +1244,125 @@ function updateCoverPreview(container, url, title) {
       <p>${safeText(title || "Add a cover image URL for a preview")}</p>
     </div>
   `;
+}
+
+function buildBookCoverQuery(form) {
+  const title = form.elements.name.value.trim();
+  const author = form.elements.author?.value?.trim?.() ?? "";
+  return [title, author, "book cover"].filter(Boolean).join(" ");
+}
+
+function isLikelyImageUrl(url) {
+  return /\.(?:png|jpe?g|webp|gif|bmp|svg)(?:[?#].*)?$/i.test(url) || /\/image\//i.test(url) || /\/img\//i.test(url);
+}
+
+function extractBestImageUrl(payload) {
+  const candidates = [];
+  const seen = new Set();
+
+  const addCandidate = (value) => {
+    if (typeof value !== "string") {
+      return;
+    }
+
+    const trimmed = value.trim();
+    if (!/^https?:\/\//i.test(trimmed) || seen.has(trimmed)) {
+      return;
+    }
+
+    seen.add(trimmed);
+    candidates.push(trimmed);
+  };
+
+  const inspect = (value) => {
+    if (!value || typeof value !== "object") {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(inspect);
+      return;
+    }
+
+    const directKeys = ["url", "href", "src", "imageUrl", "thumbnailUrl", "contentUrl", "originalUrl", "mediaUrl"];
+    directKeys.forEach((key) => {
+      const child = value[key];
+      if (typeof child === "string") {
+        addCandidate(child);
+      } else if (child && typeof child === "object") {
+        ["url", "href", "src"].forEach((nestedKey) => addCandidate(child[nestedKey]));
+      }
+    });
+
+    Object.entries(value).forEach(([key, child]) => {
+      if (directKeys.includes(key)) {
+        return;
+      }
+
+      if (typeof child === "string" && /url|src|image|thumbnail|cover/i.test(key)) {
+        addCandidate(child);
+      } else if (child && typeof child === "object") {
+        inspect(child);
+      }
+    });
+  };
+
+  inspect(payload);
+
+  return candidates.find(isLikelyImageUrl) || candidates[0] || "";
+}
+
+async function autoFindBookCover(form, coverPreview, button) {
+  if (!hackclubSearchApiKey) {
+    showToast("Set HACKCLUB_SEARCH_API_KEY in .env first.");
+    return;
+  }
+
+  const query = buildBookCoverQuery(form);
+  if (!query.trim()) {
+    showToast("Add a title before searching for a cover.");
+    return;
+  }
+
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Searching...";
+
+  try {
+    const endpoint = new URL("/res/v1/images/search", hackclubSearchBaseUrl);
+    endpoint.searchParams.set("q", query);
+    endpoint.searchParams.set("count", "10");
+    endpoint.searchParams.set("safesearch", "strict");
+
+    const response = await fetch(endpoint.toString(), {
+      headers: {
+        Authorization: `Bearer ${hackclubSearchApiKey}`,
+      },
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const detail = payload?.error?.detail || payload?.detail || `Search failed with status ${response.status}.`;
+      throw new Error(detail);
+    }
+
+    const coverUrl = extractBestImageUrl(payload);
+    if (!coverUrl) {
+      showToast("No book cover was found.");
+      return;
+    }
+
+    form.elements.coverImage.value = coverUrl;
+    updateCoverPreview(coverPreview, coverUrl, form.elements.name.value);
+    showToast("Cover found.");
+  } catch (error) {
+    console.error(error);
+    showToast(error?.message || "Could not find a cover right now.");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
 }
 
 function getFormPayload(form) {

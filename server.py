@@ -14,6 +14,7 @@ ENV_FILE = ROOT / ".env"
 
 DEFAULTS = {
     "APP_PASSCODE": "0000",
+    "HACKCLUB_SEARCH_API_KEY": "sk-hcs-v1-ab39c268450a40daaeaf0b01415e3b5a18ae6bd355f14619bc5518f66b49bf2f",
     "FIREBASE_API_KEY": "AIzaSyDrBKFVbRjCNktCmjrv-bI5OSSSj41T4iI",
     "FIREBASE_AUTH_DOMAIN": "navaratne-books.firebaseapp.com",
     "FIREBASE_DATABASE_URL": "https://navaratne-books-default-rtdb.firebaseio.com",
@@ -70,6 +71,7 @@ class NavaratneHandler(SimpleHTTPRequestHandler):
             payload = json.dumps(
                 {
                     "passcode": config["APP_PASSCODE"],
+                    "hackclubSearchApiKey": config["HACKCLUB_SEARCH_API_KEY"],
                     "firebase": {
                         "apiKey": config["FIREBASE_API_KEY"],
                         "authDomain": config["FIREBASE_AUTH_DOMAIN"],

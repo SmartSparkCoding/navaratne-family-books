@@ -822,6 +822,11 @@ blockquote {
   padding-inline: 14px;
 }
 
+.auto-cover-btn {
+  justify-self: start;
+  margin-top: 8px;
+}
+
 .books-grid {
   display: grid;
   gap: 28px;
