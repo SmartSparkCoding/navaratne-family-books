@@ -386,6 +386,150 @@ textarea:focus {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.add-options-grid,
+.bookcase-library-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.add-options-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.add-option-card {
+  text-align: left;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(92, 104, 114, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 8px;
+}
+
+.add-option-card strong {
+  font-family: "Fraunces", serif;
+  font-size: 1.15rem;
+}
+
+.add-option-card p,
+.bookcase-library-copy p,
+.reader-detail-card p,
+.recent-book-btn small {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.quick-add-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+}
+
+.menu-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(43, 52, 56, 0.25);
+  backdrop-filter: blur(4px);
+}
+
+.menu-card {
+  position: relative;
+  z-index: 1;
+  width: min(720px, 100%);
+}
+
+.form-topline {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bookcase-library-card,
+.reader-detail-card {
+  border-radius: 24px;
+  border: 1px solid rgba(92, 104, 114, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.bookcase-library-card {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+}
+
+.bookcase-cover {
+  min-height: 100%;
+  background: linear-gradient(145deg, rgba(121, 182, 175, 0.16), rgba(246, 211, 154, 0.18));
+  display: grid;
+  place-items: center;
+}
+
+.bookcase-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bookcase-cover .fallback-cover.small {
+  font-size: 1.45rem;
+}
+
+.bookcase-library-copy {
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.bookcase-library-copy strong {
+  font-family: "Fraunces", serif;
+  font-size: 1.1rem;
+}
+
+.reader-card {
+  text-align: left;
+  cursor: pointer;
+}
+
+.reader-card strong {
+  display: block;
+}
+
+.reader-detail-panel {
+  margin-top: 16px;
+}
+
+.reader-detail-card {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.recent-list {
+  display: grid;
+  gap: 10px;
+}
+
+.recent-book-btn {
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(92, 104, 114, 0.12);
+  background: rgba(255, 255, 255, 0.74);
+  display: grid;
+  gap: 4px;
+}
+
+.recent-book-btn small {
+  font-size: 0.8rem;
+}
+
 .stat-card,
 .metric-card,
 .bookcase-card,
@@ -509,18 +653,18 @@ textarea:focus {
 .books-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 
 .book-card {
-  padding: 14px;
+  padding: 10px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
 }
 
 .book-cover {
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 0.76;
   border-radius: 18px;
   overflow: hidden;
   background: linear-gradient(145deg, rgba(121, 182, 175, 0.18), rgba(246, 211, 154, 0.24));
@@ -538,15 +682,19 @@ textarea:focus {
 
 .book-cover .fallback-cover {
   font-family: "Fraunces", serif;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
   font-weight: 700;
   color: rgba(39, 49, 58, 0.78);
+}
+
+.book-cover .fallback-cover.small {
+  font-size: 1.5rem;
 }
 
 .book-card h4,
 .detail-summary h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .book-meta,
@@ -575,6 +723,13 @@ textarea:focus {
 .bookcase-card:hover,
 .stat-card:hover,
 .metric-card:hover {
+  transform: translateY(-2px);
+}
+
+.reader-card:hover,
+.reader-card:focus-visible,
+.add-option-card:hover,
+.recent-book-btn:hover {
   transform: translateY(-2px);
 }
 
@@ -927,6 +1082,14 @@ textarea:focus {
   .search-box {
     min-width: 0;
   }
+
+  .bookcase-library-card {
+    grid-template-columns: 1fr;
+  }
+
+  .bookcase-cover {
+    min-height: 180px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -942,11 +1105,20 @@ textarea:focus {
   }
 
   .books-grid,
-  .bookcase-grid,
+  .bookcase-library-grid,
+  .add-options-grid,
   .stats-grid,
   .mini-grid,
   .stat-row {
     grid-template-columns: 1fr;
+  }
+
+  .quick-add-menu {
+    padding: 12px;
+  }
+
+  .menu-card {
+    width: 100%;
   }
 
   .keypad {

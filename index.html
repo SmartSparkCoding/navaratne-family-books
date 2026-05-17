@@ -28,7 +28,7 @@
       <nav class="side-nav" aria-label="Primary">
         <button class="nav-btn active" data-view="dashboard" type="button">Dashboard</button>
         <button class="nav-btn" data-view="books" type="button">Books</button>
-        <button class="nav-btn" data-view="add" type="button">Add Book</button>
+        <button class="nav-btn" data-view="add" type="button">Add</button>
         <button class="nav-btn" data-view="stats" type="button">Stats</button>
       </nav>
 
@@ -49,36 +49,18 @@
             <span>Search</span>
             <input id="searchInput" type="search" placeholder="Find a title, author, reader, or note" />
           </label>
-          <button class="primary-btn" id="openAddBookTop" type="button">Add book</button>
+          <button class="primary-btn" id="openAddBookTop" type="button">Add</button>
         </div>
       </header>
 
       <main class="views">
         <section class="view-panel active" id="dashboardView">
-          <div class="hero-card panel">
-            <div>
-              <p class="eyebrow">Cover wall</p>
-              <h3>A cosy, modern bookcase for the whole family.</h3>
-              <p>Each shelf, reader, and book record stays connected in Realtime Database for live updates across devices.</p>
-            </div>
-            <div class="hero-art" aria-hidden="true">
-              <span class="hero-book hero-book-a"></span>
-              <span class="hero-book hero-book-b"></span>
-              <span class="hero-book hero-book-c"></span>
-            </div>
-          </div>
-
           <div class="stat-row" id="summaryCards"></div>
 
           <section class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Bookcases</p>
-                <h3>Different shelves, different vibes.</h3>
-              </div>
-              <p class="panel-meta">Tap a book to edit every detail.</p>
-            </div>
-            <div class="bookcase-grid" id="bookcaseGrid"></div>
+            <p class="eyebrow">Library snapshot</p>
+            <h3>Start with the Add menu, then browse books or check reading stats.</h3>
+            <p class="panel-meta">Bookcases now live in the Add area instead of the first page.</p>
           </section>
         </section>
 
@@ -112,12 +94,24 @@
           <section class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Add a book</p>
-                <h3>Only name and author are required.</h3>
+                <p class="eyebrow">Add</p>
+                <h3>Choose what you want to add.</h3>
               </div>
-              <p class="panel-meta">Optional fields can be filled later.</p>
+              <p class="panel-meta">Bookcases, books, and read books all live here.</p>
             </div>
-            <div id="addFormMount"></div>
+            <div class="add-options-grid" id="addOptionsGrid"></div>
+            <div id="addWorkspace"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Saved bookcases</p>
+                <h3>Bookcase covers and counts.</h3>
+              </div>
+              <p class="panel-meta">These are editable from the add workspace.</p>
+            </div>
+            <div class="bookcase-library-grid" id="bookcaseLibraryGrid"></div>
           </section>
         </section>
 
@@ -128,10 +122,10 @@
                 <p class="eyebrow">Reading stats</p>
                 <h3>Who has read what?</h3>
               </div>
-              <p class="panel-meta">Counts update as soon as the database changes.</p>
+              <p class="panel-meta">Click a person for deeper stats.</p>
             </div>
-            <div class="stats-grid" id="statsGrid"></div>
-            <div class="mini-grid" id="personStats"></div>
+            <div class="stats-grid" id="readerStatsGrid"></div>
+            <div class="reader-detail-panel" id="readerDetailPanel"></div>
           </section>
         </section>
       </main>
@@ -182,6 +176,20 @@
   </div>
 
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <div class="quick-add-menu hidden" id="quickAddMenu" aria-hidden="true">
+    <button class="menu-backdrop" type="button" data-close-add-menu aria-label="Close add menu"></button>
+    <div class="menu-card panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Add</p>
+          <h3>What do you want to add?</h3>
+        </div>
+        <button class="icon-btn" type="button" data-close-add-menu aria-label="Close">×</button>
+      </div>
+      <div class="add-options-grid compact" id="quickAddOptions"></div>
+    </div>
+  </div>
 
   <template id="bookFormTemplate">
     <div class="book-form-shell">
@@ -247,6 +255,45 @@
         <div class="form-actions">
           <button type="button" class="secondary-btn" data-reset-form>Reset</button>
           <button type="submit" class="primary-btn" data-submit-label>Save</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <template id="bookcaseFormTemplate">
+    <div class="book-form-shell">
+      <div class="form-copy">
+        <p class="eyebrow" data-form-kicker></p>
+        <h3 data-form-title></h3>
+        <p class="panel-meta" data-form-copy></p>
+      </div>
+      <form class="book-form" novalidate>
+        <div class="form-grid">
+          <label>
+            <span>Bookcase name *</span>
+            <input name="name" type="text" required maxlength="120" />
+          </label>
+          <label>
+            <span>Cover image URL</span>
+            <input name="coverImage" type="url" placeholder="https://example.com/bookcase.jpg" />
+            <div class="cover-preview" data-cover-preview></div>
+          </label>
+          <label>
+            <span>Accent color</span>
+            <input name="accent" type="color" value="#79b6af" />
+          </label>
+          <label>
+            <span>Order</span>
+            <input name="order" type="number" min="1" step="1" value="1" />
+          </label>
+          <label class="wide-field">
+            <span>Notes</span>
+            <textarea name="note" rows="4" maxlength="300" placeholder="Describe the shelf style or what belongs here."></textarea>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="secondary-btn" data-reset-form>Reset</button>
+          <button type="submit" class="primary-btn" data-submit-label>Save bookcase</button>
         </div>
       </form>
     </div>
