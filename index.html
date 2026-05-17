@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Navaratne Family Books</title>
+  <meta name="color-scheme" content="light only" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <div class="ambient ambient-three"></div>
+
+  <div class="app-shell" aria-live="polite">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <div class="brand-mark">NB</div>
+        <div>
+          <p class="eyebrow">Family catalogue</p>
+          <h1>Navaratne Books</h1>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Primary">
+        <button class="nav-btn active" data-view="dashboard" type="button">Dashboard</button>
+        <button class="nav-btn" data-view="books" type="button">Books</button>
+        <button class="nav-btn" data-view="add" type="button">Add Book</button>
+        <button class="nav-btn" data-view="stats" type="button">Stats</button>
+      </nav>
+
+      <div class="sidebar-card">
+        <p class="eyebrow">Quick note</p>
+        <p>Reloading always starts locked, so the passcode gate stays simple and session-free.</p>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Pastel bookshelf</p>
+          <h2>Browse, search, and track every family book.</h2>
+        </div>
+        <div class="topbar-actions">
+          <label class="search-box" for="searchInput">
+            <span>Search</span>
+            <input id="searchInput" type="search" placeholder="Find a title, author, reader, or note" />
+          </label>
+          <button class="primary-btn" id="openAddBookTop" type="button">Add book</button>
+        </div>
+      </header>
+
+      <main class="views">
+        <section class="view-panel active" id="dashboardView">
+          <div class="hero-card panel">
+            <div>
+              <p class="eyebrow">Cover wall</p>
+              <h3>A cosy, modern bookcase for the whole family.</h3>
+              <p>Each shelf, reader, and book record stays connected in Realtime Database for live updates across devices.</p>
+            </div>
+            <div class="hero-art" aria-hidden="true">
+              <span class="hero-book hero-book-a"></span>
+              <span class="hero-book hero-book-b"></span>
+              <span class="hero-book hero-book-c"></span>
+            </div>
+          </div>
+
+          <div class="stat-row" id="summaryCards"></div>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Bookcases</p>
+                <h3>Different shelves, different vibes.</h3>
+              </div>
+              <p class="panel-meta">Tap a book to edit every detail.</p>
+            </div>
+            <div class="bookcase-grid" id="bookcaseGrid"></div>
+          </section>
+        </section>
+
+        <section class="view-panel" id="booksView">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Library search</p>
+                <h3>Find a book fast.</h3>
+              </div>
+              <p class="panel-meta" id="booksCountLabel"></p>
+            </div>
+
+            <div class="filters-row">
+              <label>
+                <span>Bookcase</span>
+                <select id="bookcaseFilter"></select>
+              </label>
+              <label>
+                <span>Reader</span>
+                <select id="readerFilter"></select>
+              </label>
+              <button class="secondary-btn" id="clearFilters" type="button">Clear filters</button>
+            </div>
+
+            <div class="books-grid" id="booksGrid"></div>
+          </section>
+        </section>
+
+        <section class="view-panel" id="addView">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Add a book</p>
+                <h3>Only name and author are required.</h3>
+              </div>
+              <p class="panel-meta">Optional fields can be filled later.</p>
+            </div>
+            <div id="addFormMount"></div>
+          </section>
+        </section>
+
+        <section class="view-panel" id="statsView">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Reading stats</p>
+                <h3>Who has read what?</h3>
+              </div>
+              <p class="panel-meta">Counts update as soon as the database changes.</p>
+            </div>
+            <div class="stats-grid" id="statsGrid"></div>
+            <div class="mini-grid" id="personStats"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-card panel">
+      <div class="login-copy">
+        <p class="eyebrow">Private family library</p>
+        <h2>Enter the passcode</h2>
+        <p>Use the keypad below. No text box, no saved login, and a fresh lock screen after every reload.</p>
+      </div>
+
+      <div class="passcode-dots" aria-label="Passcode progress">
+        <span class="dot" id="dot0"></span>
+        <span class="dot" id="dot1"></span>
+        <span class="dot" id="dot2"></span>
+        <span class="dot" id="dot3"></span>
+      </div>
+
+      <p class="login-status" id="loginStatus">Enter four digits to unlock the shelf.</p>
+
+      <div class="keypad" id="keypad" aria-label="Passcode keypad">
+        <button type="button" class="key-btn" data-digit="1">1</button>
+        <button type="button" class="key-btn" data-digit="2">2</button>
+        <button type="button" class="key-btn" data-digit="3">3</button>
+        <button type="button" class="key-btn key-accent" data-action="clear">Clear</button>
+        <button type="button" class="key-btn" data-digit="4">4</button>
+        <button type="button" class="key-btn" data-digit="5">5</button>
+        <button type="button" class="key-btn" data-digit="6">6</button>
+        <button type="button" class="key-btn key-accent" data-action="backspace">Del</button>
+        <button type="button" class="key-btn" data-digit="7">7</button>
+        <button type="button" class="key-btn" data-digit="8">8</button>
+        <button type="button" class="key-btn" data-digit="9">9</button>
+        <button type="button" class="key-btn key-enter" data-digit="0">0</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="bookModal" aria-hidden="true">
+    <button class="modal-backdrop" type="button" data-close-modal aria-label="Close book details"></button>
+    <div class="modal-card panel">
+      <button class="icon-btn modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      <div id="bookDetailSummary"></div>
+      <div id="editFormMount"></div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <template id="bookFormTemplate">
+    <div class="book-form-shell">
+      <div class="form-copy">
+        <p class="eyebrow" data-form-kicker></p>
+        <h3 data-form-title></h3>
+        <p class="panel-meta" data-form-copy></p>
+      </div>
+      <form class="book-form" novalidate>
+        <div class="form-grid">
+          <label>
+            <span>Name *</span>
+            <input name="name" type="text" required maxlength="120" />
+          </label>
+          <label>
+            <span>Author *</span>
+            <input name="author" type="text" required maxlength="120" />
+          </label>
+          <label>
+            <span>Series</span>
+            <input name="series" type="text" maxlength="120" />
+          </label>
+          <label>
+            <span>Bookcase</span>
+            <select name="bookcaseId"></select>
+          </label>
+          <label>
+            <span>Date purchased</span>
+            <input name="datePurchased" type="date" />
+          </label>
+          <label>
+            <span>Date read</span>
+            <input name="dateRead" type="date" />
+          </label>
+          <label>
+            <span>Genre</span>
+            <input name="genre" type="text" maxlength="80" />
+          </label>
+          <label>
+            <span>ISBN</span>
+            <input name="isbn" type="text" maxlength="40" />
+          </label>
+          <label class="wide-field">
+            <span>Cover image URL</span>
+            <input name="coverImage" type="url" placeholder="https://example.com/book-cover.jpg" />
+            <div class="cover-preview" data-cover-preview></div>
+          </label>
+          <fieldset class="reader-fieldset wide-field">
+            <legend>Who has read this?</legend>
+            <div class="reader-grid">
+              <label><input type="checkbox" name="readers" value="Sarah" />Sarah</label>
+              <label><input type="checkbox" name="readers" value="Leroy" />Leroy</label>
+              <label><input type="checkbox" name="readers" value="Jacob" />Jacob</label>
+              <label><input type="checkbox" name="readers" value="Ollie" />Ollie</label>
+              <label><input type="checkbox" name="readers" value="Grannie" />Grannie</label>
+            </div>
+          </fieldset>
+          <label class="wide-field">
+            <span>Notes</span>
+            <textarea name="notes" rows="4" maxlength="1000" placeholder="Add plot notes, where it was bought, or any family memories."></textarea>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="secondary-btn" data-reset-form>Reset</button>
+          <button type="submit" class="primary-btn" data-submit-label>Save</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <script type="module" src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

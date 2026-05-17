@@ -1,0 +1,70 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build static site
+        run: |
+          mkdir -p _site
+          cp index.html app.js styles.css _site/
+          cat > _site/config.js <<EOF
+          window.APP_CONFIG = {
+            passcode: ${APP_PASSCODE_JSON},
+            firebase: {
+              apiKey: ${FIREBASE_API_KEY_JSON},
+              authDomain: ${FIREBASE_AUTH_DOMAIN_JSON},
+              databaseURL: ${FIREBASE_DATABASE_URL_JSON},
+              projectId: ${FIREBASE_PROJECT_ID_JSON},
+              storageBucket: ${FIREBASE_STORAGE_BUCKET_JSON},
+              messagingSenderId: ${FIREBASE_MESSAGING_SENDER_ID_JSON},
+              appId: ${FIREBASE_APP_ID_JSON}
+            }
+          };
+          EOF
+        env:
+          APP_PASSCODE_JSON: ${{ toJSON(vars.APP_PASSCODE || secrets.APP_PASSCODE || '0000') }}
+          FIREBASE_API_KEY_JSON: ${{ toJSON(vars.FIREBASE_API_KEY || secrets.FIREBASE_API_KEY || '') }}
+          FIREBASE_AUTH_DOMAIN_JSON: ${{ toJSON(vars.FIREBASE_AUTH_DOMAIN || secrets.FIREBASE_AUTH_DOMAIN || '') }}
+          FIREBASE_DATABASE_URL_JSON: ${{ toJSON(vars.FIREBASE_DATABASE_URL || secrets.FIREBASE_DATABASE_URL || '') }}
+          FIREBASE_PROJECT_ID_JSON: ${{ toJSON(vars.FIREBASE_PROJECT_ID || secrets.FIREBASE_PROJECT_ID || '') }}
+          FIREBASE_STORAGE_BUCKET_JSON: ${{ toJSON(vars.FIREBASE_STORAGE_BUCKET || secrets.FIREBASE_STORAGE_BUCKET || '') }}
+          FIREBASE_MESSAGING_SENDER_ID_JSON: ${{ toJSON(vars.FIREBASE_MESSAGING_SENDER_ID || secrets.FIREBASE_MESSAGING_SENDER_ID || '') }}
+          FIREBASE_APP_ID_JSON: ${{ toJSON(vars.FIREBASE_APP_ID || secrets.FIREBASE_APP_ID || '') }}
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
