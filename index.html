@@ -33,8 +33,9 @@
       </nav>
 
       <div class="sidebar-card">
-        <p class="eyebrow">Quick note</p>
-        <p>Reloading always starts locked, so the passcode gate stays simple and session-free.</p>
+        <p class="eyebrow">Quote</p>
+        <blockquote id="sidebarQuote"></blockquote>
+        <p class="quote-source" id="sidebarQuoteSource"></p>
       </div>
     </aside>
 
@@ -45,23 +46,25 @@
           <h2>Browse, search, and track every family book.</h2>
         </div>
         <div class="topbar-actions">
-          <label class="search-box" for="searchInput">
-            <span>Search</span>
-            <input id="searchInput" type="search" placeholder="Find a title, author, reader, or note" />
-          </label>
           <button class="primary-btn" id="openAddBookTop" type="button">Add</button>
         </div>
       </header>
 
       <main class="views">
         <section class="view-panel active" id="dashboardView">
-          <div class="stat-row" id="summaryCards"></div>
+          <div class="dashboard-hero panel">
+            <div>
+              <p class="eyebrow">Library pulse</p>
+              <h3>A quieter dashboard, with the most useful bits front and center.</h3>
+              <p>Jump into books, track readers, or add a new title without the page feeling empty.</p>
+            </div>
+            <div class="dashboard-ornament" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
 
-          <section class="panel">
-            <p class="eyebrow">Library snapshot</p>
-            <h3>Start with the Add menu, then browse books or check reading stats.</h3>
-            <p class="panel-meta">Bookcases now live in the Add area instead of the first page.</p>
-          </section>
+          <div class="stat-row" id="summaryCards"></div>
+          <div class="dashboard-grid" id="dashboardGrid"></div>
         </section>
 
         <section class="view-panel" id="booksView">
@@ -72,6 +75,13 @@
                 <h3>Find a book fast.</h3>
               </div>
               <p class="panel-meta" id="booksCountLabel"></p>
+            </div>
+
+            <div class="search-row">
+              <label class="search-box" for="searchInput">
+                <span>Search</span>
+                <input id="searchInput" type="search" placeholder="Find a title, author, reader, or note" />
+              </label>
             </div>
 
             <div class="filters-row">
@@ -102,17 +112,6 @@
             <div class="add-options-grid" id="addOptionsGrid"></div>
             <div id="addWorkspace"></div>
           </section>
-
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Saved bookcases</p>
-                <h3>Bookcase covers and counts.</h3>
-              </div>
-              <p class="panel-meta">These are editable from the add workspace.</p>
-            </div>
-            <div class="bookcase-library-grid" id="bookcaseLibraryGrid"></div>
-          </section>
         </section>
 
         <section class="view-panel" id="statsView">
@@ -125,7 +124,6 @@
               <p class="panel-meta">Click a person for deeper stats.</p>
             </div>
             <div class="stats-grid" id="readerStatsGrid"></div>
-            <div class="reader-detail-panel" id="readerDetailPanel"></div>
           </section>
         </section>
       </main>
@@ -172,6 +170,14 @@
       <button class="icon-btn modal-close" type="button" data-close-modal aria-label="Close">×</button>
       <div id="bookDetailSummary"></div>
       <div id="editFormMount"></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="readerModal" aria-hidden="true">
+    <button class="modal-backdrop" type="button" data-close-reader-modal aria-label="Close reader details"></button>
+    <div class="modal-card panel">
+      <button class="icon-btn modal-close" type="button" data-close-reader-modal aria-label="Close">×</button>
+      <div id="readerModalContent"></div>
     </div>
   </div>
 

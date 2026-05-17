@@ -15,6 +15,28 @@ const expectedPasscode = String(appConfig.passcode ?? "0000");
 
 const readerNames = ["Sarah", "Leroy", "Jacob", "Ollie", "Grannie"];
 const defaultBookcases = [];
+const quotePool = [
+  { quote: "Call me Ishmael.", source: "Moby-Dick, Herman Melville" },
+  { quote: "All children, except one, grow up.", source: "Peter Pan, J. M. Barrie" },
+  { quote: "It was a bright cold day in April, and the clocks were striking thirteen.", source: "1984, George Orwell" },
+  { quote: "There was no possibility of taking a walk that day.", source: "Jane Eyre, Charlotte Brontë" },
+  { quote: "I am no bird; and no net ensnares me.", source: "Jane Eyre, Charlotte Brontë" },
+  { quote: "Reader, I married him.", source: "Jane Eyre, Charlotte Brontë" },
+  { quote: "Beware; for I am fearless, and therefore powerful.", source: "Frankenstein, Mary Shelley" },
+  { quote: "We're all mad here.", source: "Alice's Adventures in Wonderland, Lewis Carroll" },
+  { quote: "Curiouser and curiouser!", source: "Alice's Adventures in Wonderland, Lewis Carroll" },
+  { quote: "Begin at the beginning.", source: "Alice's Adventures in Wonderland, Lewis Carroll" },
+  { quote: "It is a truth universally acknowledged...", source: "Pride and Prejudice, Jane Austen" },
+  { quote: "Happy families are all alike; every unhappy family is unhappy in its own way.", source: "Anna Karenina, Leo Tolstoy" },
+  { quote: "It was the best of times, it was the worst of times...", source: "A Tale of Two Cities, Charles Dickens" },
+  { quote: "You see, but you do not observe.", source: "A Scandal in Bohemia, Arthur Conan Doyle" },
+  { quote: "The game is afoot.", source: "The Adventure of the Abbey Grange, Arthur Conan Doyle" },
+  { quote: "To be, or not to be: that is the question:", source: "Hamlet, William Shakespeare" },
+  { quote: "Now is the winter of our discontent.", source: "Richard III, William Shakespeare" },
+  { quote: "All the world's a stage.", source: "As You Like It, William Shakespeare" },
+  { quote: "Parting is such sweet sorrow.", source: "Romeo and Juliet, William Shakespeare" },
+  { quote: "Some are born great, some achieve greatness, and some have greatness thrust upon 'em.", source: "Twelfth Night, William Shakespeare" },
+];
 
 const state = {
   unlocked: false,
@@ -31,6 +53,7 @@ const state = {
   addMenuOpen: false,
   selectedReader: readerNames[0],
   addRenderedMode: null,
+  currentQuote: null,
 };
 
 const elements = {
@@ -39,13 +62,15 @@ const elements = {
   keypad: document.getElementById("keypad"),
   dots: [0, 1, 2, 3].map((index) => document.getElementById(`dot${index}`)),
   navButtons: [...document.querySelectorAll(".nav-btn")],
+  sidebarQuote: document.getElementById("sidebarQuote"),
+  sidebarQuoteSource: document.getElementById("sidebarQuoteSource"),
   searchInput: document.getElementById("searchInput"),
   openAddBookTop: document.getElementById("openAddBookTop"),
   quickAddMenu: document.getElementById("quickAddMenu"),
   quickAddOptions: document.getElementById("quickAddOptions"),
   addOptionsGrid: document.getElementById("addOptionsGrid"),
   addWorkspace: document.getElementById("addWorkspace"),
-  bookcaseLibraryGrid: document.getElementById("bookcaseLibraryGrid"),
+  dashboardGrid: document.getElementById("dashboardGrid"),
   dashboardView: document.getElementById("dashboardView"),
   booksView: document.getElementById("booksView"),
   addView: document.getElementById("addView"),
@@ -57,11 +82,11 @@ const elements = {
   readerFilter: document.getElementById("readerFilter"),
   clearFilters: document.getElementById("clearFilters"),
   readerStatsGrid: document.getElementById("readerStatsGrid"),
-  readerDetailPanel: document.getElementById("readerDetailPanel"),
+  readerModal: document.getElementById("readerModal"),
+  readerModalContent: document.getElementById("readerModalContent"),
   bookModal: document.getElementById("bookModal"),
   bookDetailSummary: document.getElementById("bookDetailSummary"),
   editFormMount: document.getElementById("editFormMount"),
-  addFormMount: document.getElementById("addFormMount"),
   toastStack: document.getElementById("toastStack"),
   bookFormTemplate: document.getElementById("bookFormTemplate"),
   bookcaseFormTemplate: document.getElementById("bookcaseFormTemplate"),
@@ -122,7 +147,7 @@ function getBookcases() {
 }
 
 function getBookcaseLabel(bookcaseId) {
-  const bookcase = getBookcases().find((item) => item.id === bookcaseId);
+  const bookcase = getBookcaseOptions().find((item) => item.id === bookcaseId);
   return bookcase?.name ?? "Unsorted";
 }
 
@@ -196,11 +221,13 @@ function getSummaryStats() {
   const totalBooks = state.books.length;
   const booksWithReaders = state.books.filter((book) => normalizeReaders(book.readers).length > 0).length;
   const totalReadingChecks = state.books.reduce((sum, book) => sum + normalizeReaders(book.readers).length, 0);
+  const totalBookcases = getBookcaseOptions().length;
 
   return [
     { label: "Books", value: totalBooks, note: "titles in the catalogue" },
     { label: "Read books", value: booksWithReaders, note: "books with at least one reader" },
     { label: "Read checkmarks", value: totalReadingChecks, note: "all selected reader counts" },
+    { label: "Bookcases", value: totalBookcases, note: "shelves in play" },
   ];
 }
 
@@ -239,6 +266,31 @@ function createBookcaseCoverMarkup(bookcase) {
   return `<div class="fallback-cover small">${safeText((bookcase.name || "").slice(0, 2).toUpperCase() || "BC")}</div>`;
 }
 
+function getBookcaseAccent(bookcase) {
+  return bookcase?.accent || pickColor(bookcase?.name || bookcase?.id || "bookcase");
+}
+
+function getBookcaseOptions() {
+  const explicit = getBookcases();
+  const derived = new Map(explicit.map((bookcase) => [bookcase.id, bookcase]));
+
+  state.books.forEach((book) => {
+    if (!book.bookcaseId || derived.has(book.bookcaseId)) {
+      return;
+    }
+
+    derived.set(book.bookcaseId, {
+      id: book.bookcaseId,
+      name: getBookcaseLabel(book.bookcaseId),
+      accent: pickColor(book.bookcaseId),
+      order: derived.size + 1,
+      note: "Auto-detected shelf",
+    });
+  });
+
+  return [...derived.values()].sort((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0));
+}
+
 function bookDetails(book) {
   return [
     ["Series", book.series || "Not set"],
@@ -258,6 +310,7 @@ function refreshAll() {
   updateNavState();
   renderView();
   renderSummaryCards();
+  renderDashboard();
   renderAddView();
   renderBooks();
   renderStats();
@@ -292,6 +345,55 @@ function renderSummaryCards() {
     .join("");
 }
 
+function renderQuote() {
+  if (!elements.sidebarQuote || !elements.sidebarQuoteSource) {
+    return;
+  }
+
+  const selectedQuote = quotePool[Math.floor(Math.random() * quotePool.length)];
+  state.currentQuote = selectedQuote;
+  elements.sidebarQuote.textContent = `“${selectedQuote.quote}”`;
+  elements.sidebarQuoteSource.textContent = selectedQuote.source;
+}
+
+function renderDashboard() {
+  if (!elements.dashboardGrid) {
+    return;
+  }
+
+  const topReader = getReaderCounts().sort((left, right) => right.count - left.count)[0];
+  const topBookcase = getBookcaseOptions()
+    .map((bookcase) => ({
+      ...bookcase,
+      count: state.books.filter((book) => book.bookcaseId === bookcase.id).length,
+    }))
+    .sort((left, right) => right.count - left.count)[0];
+  const recentBooks = state.books.slice().sort((left, right) => (right.updatedAt || right.createdAt || "").localeCompare(left.updatedAt || left.createdAt || "")).slice(0, 4);
+
+  elements.dashboardGrid.innerHTML = `
+    <article class="dashboard-card">
+      <p class="eyebrow">Top reader</p>
+      <strong>${safeText(topReader?.reader || "No readers yet")}</strong>
+      <p>${topReader?.count || 0} books read</p>
+    </article>
+    <article class="dashboard-card accent-card" style="--card-accent:${safeText(getBookcaseAccent(topBookcase))}">
+      <p class="eyebrow">Top bookcase</p>
+      <strong>${safeText(topBookcase?.name || "No bookcases yet")}</strong>
+      <p>${topBookcase?.count || 0} books on that shelf</p>
+    </article>
+    <article class="dashboard-card wide-card">
+      <p class="eyebrow">Recent additions</p>
+      <div class="recent-dashboard-list">
+        ${recentBooks.length ? recentBooks.map((book) => `<button class="recent-book-btn" type="button" data-dashboard-book="${safeText(book.id)}">${safeText(book.name)} <small>${safeText(getBookcaseLabel(book.bookcaseId))}</small></button>`).join("") : "<p>No books yet.</p>"}
+      </div>
+    </article>
+  `;
+
+  elements.dashboardGrid.querySelectorAll("[data-dashboard-book]").forEach((button) => {
+    button.addEventListener("click", () => openBookModal(button.dataset.dashboardBook));
+  });
+}
+
 function renderAddOptions(container) {
   const options = [
     { mode: "book", title: "Add book", copy: "Create a new catalogue entry." },
@@ -319,35 +421,33 @@ function renderAddOptions(container) {
 function renderAddView() {
   renderAddOptions(elements.addOptionsGrid);
   renderAddOptions(elements.quickAddOptions);
-  renderCurrentBookcases();
   if (state.addMode) {
     if (state.addRenderedMode !== state.addMode || !elements.addWorkspace.childElementCount) {
       renderAddWorkspace(state.addMode);
     }
   } else if (elements.addWorkspace) {
-    elements.addWorkspace.innerHTML = `<div class="empty-state"><h3>Choose an add option.</h3><p>Pick book, bookcase, or a read book to open its form.</p></div>`;
+    elements.addWorkspace.innerHTML = "";
   }
 }
 
-function renderCurrentBookcases() {
-  const bookcases = getBookcaseCounts();
-
-  if (!bookcases.length) {
-    elements.bookcaseLibraryGrid.innerHTML = `<div class="empty-state"><h3>No bookcases yet</h3><p>Add a bookcase to start collecting shelf covers.</p></div>`;
-    return;
-  }
-
-  elements.bookcaseLibraryGrid.innerHTML = bookcases
-    .map((bookcase) => `
-      <article class="bookcase-library-card">
-        <div class="bookcase-cover">${createBookcaseCoverMarkup(bookcase)}</div>
-        <div class="bookcase-library-copy">
-          <p class="eyebrow">${safeText(bookcase.name)}</p>
-          <strong>${bookcase.count} books</strong>
-          <p>${safeText(bookcase.note || "Shelf")}</p>
-        </div>
-      </article>
-    `)
+function renderBookSections(bookGroups) {
+  return bookGroups
+    .map((group) => {
+      const accent = getBookcaseAccent(group.bookcase);
+      return `
+        <article class="bookcase-section" style="--bookcase-accent:${accent};">
+          <div class="bookcase-section-header">
+            <div class="bookcase-cover" style="background: linear-gradient(145deg, ${accent}33, ${accent}14);">${createBookcaseCoverMarkup(group.bookcase)}</div>
+            <div class="bookcase-section-copy">
+              <p class="eyebrow">${safeText(group.bookcase.note || "Bookcase")}</p>
+              <h3>${safeText(group.bookcase.name)}</h3>
+              <p>${group.books.length} book${group.books.length === 1 ? "" : "s"}</p>
+            </div>
+          </div>
+          <div class="books-grid">${group.books.map((book) => renderBookCard(book, accent)).join("")}</div>
+        </article>
+      `;
+    })
     .join("");
 }
 
@@ -360,18 +460,40 @@ function renderBooks() {
     return;
   }
 
-  elements.booksGrid.innerHTML = books.map((book) => renderBookCard(book)).join("");
+  const grouped = groupBooksByBookcase(books);
+  elements.booksGrid.innerHTML = renderBookSections(grouped);
   elements.booksGrid.querySelectorAll("[data-book-id]").forEach((card) => {
     card.addEventListener("click", () => openBookModal(card.dataset.bookId));
   });
 }
 
-function renderBookCard(book) {
+function groupBooksByBookcase(books) {
+  const groups = new Map();
+
+  books.forEach((book) => {
+    const id = book.bookcaseId || "unsorted";
+    if (!groups.has(id)) {
+      const bookcase = getBookcaseOptions().find((item) => item.id === id) || {
+        id,
+        name: id === "unsorted" ? "Unsorted" : getBookcaseLabel(id),
+        accent: pickColor(id),
+        note: "Auto-detected shelf",
+      };
+      groups.set(id, { bookcase, books: [] });
+    }
+
+    groups.get(id).books.push(book);
+  });
+
+  return [...groups.values()].sort((left, right) => (left.bookcase.order ?? 999) - (right.bookcase.order ?? 999));
+}
+
+function renderBookCard(book, accent) {
   const readers = normalizeReaders(book.readers);
   const label = getBookcaseLabel(book.bookcaseId);
 
   return `
-    <article class="book-card" data-book-id="${safeText(book.id)}" tabindex="0" role="button" aria-label="Open ${safeText(book.name)}">
+    <article class="book-card" style="--bookcase-accent:${accent || pickColor(label)}" data-book-id="${safeText(book.id)}" tabindex="0" role="button" aria-label="Open ${safeText(book.name)}">
       <div class="book-cover">${createCoverMarkup(book)}</div>
       <div>
         <h4>${safeText(book.name)}</h4>
@@ -403,12 +525,6 @@ function renderStats() {
   elements.readerStatsGrid.querySelectorAll("[data-reader-name]").forEach((button) => {
     button.addEventListener("click", () => openReaderStats(button.dataset.readerName));
   });
-
-  if (!state.selectedReader && readerCounts.length) {
-    state.selectedReader = readerCounts[0].reader;
-  }
-
-  renderReaderDetail(state.selectedReader || readerCounts[0]?.reader || readerNames[0]);
 }
 
 function getReaderStats(readerName) {
@@ -444,7 +560,7 @@ function renderReaderDetail(readerName) {
   const stats = getReaderStats(readerName);
   const bookcaseEntries = Object.entries(stats.bookcaseCounts).sort((a, b) => b[1] - a[1]);
 
-  elements.readerDetailPanel.innerHTML = `
+  elements.readerModalContent.innerHTML = `
     <article class="reader-detail-card">
       <div class="panel-header">
         <div>
@@ -472,14 +588,21 @@ function renderReaderDetail(readerName) {
     </article>
   `;
 
-  elements.readerDetailPanel.querySelectorAll("[data-recent-book]").forEach((button) => {
+  elements.readerModalContent.querySelectorAll("[data-recent-book]").forEach((button) => {
     button.addEventListener("click", () => openBookModal(button.dataset.recentBook));
   });
 }
 
 function openReaderStats(readerName) {
   state.selectedReader = readerName;
+  elements.readerModal.classList.remove("hidden");
+  elements.readerModal.setAttribute("aria-hidden", "false");
   renderReaderDetail(readerName);
+}
+
+function closeReaderModal() {
+  elements.readerModal.classList.add("hidden");
+  elements.readerModal.setAttribute("aria-hidden", "true");
 }
 
 function setView(view) {
@@ -517,13 +640,17 @@ function renderAddWorkspace(mode) {
     return;
   }
 
+  if (mode === "read") {
+    const { element, form } = createReadBookForm();
+    elements.addWorkspace.replaceChildren(element);
+    form.reset();
+    return;
+  }
+
   const { element, form, coverPreview } = createBookForm(mode);
   editForm = null;
   elements.addWorkspace.replaceChildren(element);
   populateForm(form, {});
-  if (mode === "read") {
-    form.elements.dateRead.value = new Date().toISOString().slice(0, 10);
-  }
   updateCoverPreview(coverPreview, "", "");
 }
 
@@ -534,6 +661,10 @@ function renderAddPageDefault() {
 }
 
 function openBookModal(bookId) {
+  if (!elements.readerModal.classList.contains("hidden")) {
+    closeReaderModal();
+  }
+
   state.modalBookId = bookId;
   const book = state.books.find((entry) => entry.id === bookId);
 
@@ -691,12 +822,159 @@ function createBookcaseForm() {
   return { element: shell, form, coverPreview };
 }
 
+function createReadBookForm() {
+  const shell = document.createElement("div");
+  shell.className = "book-form-shell";
+  shell.innerHTML = `
+    <div class="form-copy">
+      <p class="eyebrow">Add a read book</p>
+      <h3>Pick the book, then tap who read it.</h3>
+      <p class="panel-meta">No full edit form here. Just search, choose, and save the reader.</p>
+    </div>
+    <div class="form-topline"><button class="secondary-btn" type="button" data-back-to-add>Back to Add</button></div>
+    <form class="book-form" novalidate>
+      <div class="form-grid">
+        <label class="wide-field">
+          <span>Search books</span>
+          <input name="bookSearch" type="search" placeholder="Search by title or author" />
+        </label>
+        <div class="wide-field">
+          <div class="book-search-results" data-book-results></div>
+        </div>
+        <div class="wide-field">
+          <div class="detail-field">
+            <span>Selected book</span>
+            <strong data-selected-book>Choose a book first</strong>
+          </div>
+        </div>
+        <fieldset class="reader-fieldset wide-field">
+          <legend>Who read it?</legend>
+          <div class="reader-grid">
+            <label><input type="checkbox" name="readers" value="Sarah" />Sarah</label>
+            <label><input type="checkbox" name="readers" value="Leroy" />Leroy</label>
+            <label><input type="checkbox" name="readers" value="Jacob" />Jacob</label>
+            <label><input type="checkbox" name="readers" value="Ollie" />Ollie</label>
+            <label><input type="checkbox" name="readers" value="Grannie" />Grannie</label>
+          </div>
+        </fieldset>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="secondary-btn" data-reset-form>Reset</button>
+        <button type="submit" class="primary-btn" data-submit-label>Save read book</button>
+      </div>
+    </form>
+  `;
+
+  const form = shell.querySelector("form");
+  const searchInput = form.elements.bookSearch;
+  const results = shell.querySelector("[data-book-results]");
+  const selectedBookLabel = shell.querySelector("[data-selected-book]");
+  const resetButton = shell.querySelector("[data-reset-form]");
+  let selectedBookId = "";
+
+  function renderReadBookResults() {
+    const query = searchInput.value.trim().toLowerCase();
+    const matches = state.books
+      .filter((book) => {
+        if (!query) {
+          return true;
+        }
+
+        return [book.name, book.author, getBookcaseLabel(book.bookcaseId)]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      })
+      .slice(0, 12);
+
+    if (!matches.length) {
+      results.innerHTML = `<div class="empty-state"><h3>No books found</h3><p>Try a different title or author.</p></div>`;
+      return;
+    }
+
+    results.innerHTML = matches
+      .map(
+        (book) => `
+          <button type="button" class="book-search-result ${selectedBookId === book.id ? "selected" : ""}" data-read-book-id="${safeText(book.id)}">
+            <strong>${safeText(book.name)}</strong>
+            <p>${safeText(book.author)} · ${safeText(getBookcaseLabel(book.bookcaseId))}</p>
+          </button>
+        `,
+      )
+      .join("");
+
+    results.querySelectorAll("[data-read-book-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedBookId = button.dataset.readBookId;
+        selectedBookLabel.textContent = state.books.find((book) => book.id === selectedBookId)?.name || "Choose a book first";
+        renderReadBookResults();
+      });
+    });
+  }
+
+  searchInput.addEventListener("input", renderReadBookResults);
+  renderReadBookResults();
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await handleReadBookSubmit(form, selectedBookId, selectedBookLabel);
+  });
+
+  resetButton.addEventListener("click", () => {
+    selectedBookId = "";
+    form.reset();
+    selectedBookLabel.textContent = "Choose a book first";
+    renderReadBookResults();
+  });
+
+  return { element: shell, form };
+}
+
 function populateBookcaseForm(form, bookcase) {
   form.elements.name.value = bookcase?.name ?? "";
   form.elements.coverImage.value = bookcase?.coverImage ?? "";
   form.elements.accent.value = bookcase?.accent ?? "#79b6af";
   form.elements.order.value = bookcase?.order ?? (state.bookcases.length + 1 || 1);
   form.elements.note.value = bookcase?.note ?? "";
+}
+
+async function handleReadBookSubmit(form, selectedBookId, selectedBookLabel) {
+  if (!state.firebaseReady || !booksRef) {
+    showToast("Firebase is not connected yet.");
+    return;
+  }
+
+  if (!selectedBookId) {
+    showToast("Choose a book first.");
+    return;
+  }
+
+  const selectedReaders = [...form.querySelectorAll('input[name="readers"]:checked')].map((checkbox) => checkbox.value);
+  if (!selectedReaders.length) {
+    showToast("Choose at least one reader.");
+    return;
+  }
+
+  const book = state.books.find((entry) => entry.id === selectedBookId);
+  const existingReaders = normalizeReaders(book?.readers);
+  const mergedReaders = [...new Set([...existingReaders, ...selectedReaders])];
+
+  try {
+    await update(ref(database, `books/${selectedBookId}`), {
+      readers: mergedReaders,
+      dateRead: book?.dateRead || new Date().toISOString().slice(0, 10),
+      updatedAt: new Date().toISOString(),
+    });
+    showToast(`Saved readers for ${book?.name || "the book"}.`);
+    selectedBookLabel.textContent = "Choose a book first";
+    state.addMode = null;
+    state.addRenderedMode = null;
+    setView("books");
+  } catch (error) {
+    console.error(error);
+    showToast("That read-book save did not complete.");
+  }
 }
 
 function updateBookcasePreview(container, url, title) {
@@ -732,7 +1010,7 @@ function syncAllBookcaseSelects() {
 
   elements.bookcaseFilter.innerHTML = [
     `<option value="all">All bookcases</option>`,
-    ...getBookcases().map((bookcase) => `<option value="${safeText(bookcase.id)}">${safeText(bookcase.name)}</option>`),
+    ...getBookcaseOptions().map((bookcase) => `<option value="${safeText(bookcase.id)}">${safeText(bookcase.name)}</option>`),
   ].join("");
 
   elements.readerFilter.innerHTML = [
@@ -863,9 +1141,7 @@ async function handleBookcaseSubmit(form) {
     updateBookcasePreview(form.querySelector("[data-cover-preview]"), "", "Bookcase");
     state.addMode = null;
     state.addRenderedMode = null;
-    if (state.view === "add") {
-      renderAddView();
-    }
+    renderAddView();
   } catch (error) {
     console.error(error);
     showToast("That bookcase save did not complete.");
@@ -994,11 +1270,6 @@ function bindEvents() {
       closeAddMenu();
       return;
     }
-
-    const button = event.target.closest("[data-add-mode]");
-    if (button) {
-      openAddWorkspace(button.dataset.addMode);
-    }
   });
 
   elements.addWorkspace.addEventListener("click", (event) => {
@@ -1019,9 +1290,20 @@ function bindEvents() {
     }
   });
 
+  elements.readerModal.addEventListener("click", (event) => {
+    if (event.target.matches("[data-close-reader-modal]")) {
+      closeReaderModal();
+    }
+  });
+
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.quickAddMenu.classList.contains("hidden")) {
       closeAddMenu();
+      return;
+    }
+
+    if (event.key === "Escape" && !elements.readerModal.classList.contains("hidden")) {
+      closeReaderModal();
       return;
     }
 
@@ -1057,16 +1339,18 @@ function renderInitialEmptyState() {
   elements.summaryCards.innerHTML = `
     <article class="stat-card"><p class="eyebrow">Loading</p><strong>...</strong><p>Waiting for the library data.</p></article>
   `;
+  if (elements.dashboardGrid) {
+    elements.dashboardGrid.innerHTML = `<div class="empty-state"><h3>Loading dashboard...</h3><p>The library is waking up.</p></div>`;
+  }
   elements.booksGrid.innerHTML = `<div class="empty-state"><h3>Loading books...</h3><p>The app is connecting to Firebase.</p></div>`;
   elements.readerStatsGrid.innerHTML = `<div class="empty-state"><h3>Loading stats...</h3><p>The app is connecting to Firebase.</p></div>`;
-  elements.readerDetailPanel.innerHTML = `<div class="empty-state"><h3>Loading people...</h3><p>The app is connecting to Firebase.</p></div>`;
   elements.addOptionsGrid.innerHTML = `<div class="empty-state"><h3>Loading add options...</h3><p>The app is connecting to Firebase.</p></div>`;
-  elements.bookcaseLibraryGrid.innerHTML = `<div class="empty-state"><h3>Loading bookcases...</h3><p>The app is connecting to Firebase.</p></div>`;
 }
 
 function init() {
   bindEvents();
   renderInitialEmptyState();
+  renderQuote();
   updatePasscodeUI();
   initFirebase();
   state.unlocked = false;
