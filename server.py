@@ -3,9 +3,6 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
-import urllib.error
-import urllib.parse
-import urllib.request
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -17,7 +14,6 @@ ENV_FILE = ROOT / ".env"
 
 DEFAULTS = {
     "APP_PASSCODE": "0000",
-    "HACKCLUB_SEARCH_API_KEY": "",
     "FIREBASE_API_KEY": "AIzaSyDrBKFVbRjCNktCmjrv-bI5OSSSj41T4iI",
     "FIREBASE_AUTH_DOMAIN": "navaratne-books.firebaseapp.com",
     "FIREBASE_DATABASE_URL": "https://navaratne-books-default-rtdb.firebaseio.com",
@@ -57,54 +53,6 @@ class NavaratneHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
-    def proxy_hackclub_image_search(self) -> None:
-        config = read_config()
-        api_key = config.get("HACKCLUB_SEARCH_API_KEY", "").strip()
-
-        if not api_key:
-            self.send_response(HTTPStatus.SERVICE_UNAVAILABLE)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "Missing HACKCLUB_SEARCH_API_KEY"}).encode("utf-8"))
-            return
-
-        parsed = urlparse(self.path)
-        query = parsed.query
-        upstream_url = f"https://search.hackclub.com/res/v1/images/search?{query}"
-        request = urllib.request.Request(
-            upstream_url,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Accept": "application/json",
-                "User-Agent": "NavaratneBooks/1.0",
-            },
-        )
-
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                body = response.read()
-                status = getattr(response, "status", HTTPStatus.OK)
-                content_type = response.headers.get("Content-Type", "application/json; charset=utf-8")
-                self.send_response(status)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                self.wfile.write(body)
-        except urllib.error.HTTPError as error:
-            body = error.read() if error.fp else b""
-            content_type = error.headers.get("Content-Type", "application/json; charset=utf-8") if error.headers else "application/json; charset=utf-8"
-            self.send_response(error.code)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body or json.dumps({"error": error.reason}).encode("utf-8"))
-        except Exception as error:  # noqa: BLE001
-            self.send_response(HTTPStatus.BAD_GATEWAY)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(error)}).encode("utf-8"))
-
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
 
@@ -122,7 +70,6 @@ class NavaratneHandler(SimpleHTTPRequestHandler):
             payload = json.dumps(
                 {
                     "passcode": config["APP_PASSCODE"],
-                    "hackclubSearchApiKey": config["HACKCLUB_SEARCH_API_KEY"],
                     "firebase": {
                         "apiKey": config["FIREBASE_API_KEY"],
                         "authDomain": config["FIREBASE_AUTH_DOMAIN"],
@@ -136,10 +83,6 @@ class NavaratneHandler(SimpleHTTPRequestHandler):
                 separators=(",", ":"),
             )
             self.wfile.write(f"window.APP_CONFIG = {payload};".encode("utf-8"))
-            return
-
-        if path == "/api/hackclub/images/search":
-            self.proxy_hackclub_image_search()
             return
 
         if path == "/":

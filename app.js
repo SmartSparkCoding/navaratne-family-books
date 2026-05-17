@@ -12,9 +12,7 @@ import {
 const appConfig = window.APP_CONFIG ?? {};
 const firebaseConfig = appConfig.firebase ?? {};
 const expectedPasscode = String(appConfig.passcode ?? "0000");
-const hackclubSearchApiKey = String(appConfig.hackclubSearchApiKey ?? "").trim();
-const hackclubSearchProxyPath = String(appConfig.hackclubSearchProxyPath ?? "api/hackclub/images/search");
-const hackclubSearchDirectBase = String(appConfig.hackclubSearchDirectBase ?? "https://search.hackclub.com").replace(/\/$/, "");
+const hackclubSearchBaseUrl = "https://search.hackclub.com";
 
 const readerNames = ["Sarah", "Leroy", "Jacob", "Ollie", "Grannie"];
 const defaultBookcases = [];
@@ -57,6 +55,7 @@ const state = {
   selectedReader: readerNames[0],
   addRenderedMode: null,
   currentQuote: null,
+  imageApiKey: "",
   choiceData: {
     author: [],
     series: [],
@@ -150,6 +149,10 @@ function initFirebase() {
       refreshAll();
     });
 
+    onValue(ref(database, "image_api_key"), (snapshot) => {
+      state.imageApiKey = normalizeApiKeyValue(snapshot.val());
+    });
+
     onValue(authorsRef, (snapshot) => {
       state.choiceData.author = snapshotToArray(snapshot.val()).map((entry) => String(entry.name ?? "").trim()).filter(Boolean);
       syncChoiceFields();
@@ -181,6 +184,18 @@ function snapshotToArray(value) {
   }
 
   return Object.entries(value).map(([id, entry]) => ({ id, ...entry }));
+}
+
+function normalizeApiKeyValue(value) {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
+  }
+
+  if (value && typeof value === "object") {
+    return String(value.value ?? value.apiKey ?? value.key ?? value.token ?? "").trim();
+  }
+
+  return "";
 }
 
 function getBookcases() {
@@ -1365,23 +1380,15 @@ function buildHackclubImageSearchUrl(baseUrl, query) {
 }
 
 async function fetchHackclubImageSearch(query) {
-  const requestOptions = {
-    headers: { Accept: "application/json" },
-  };
-
-  const proxyResponse = await fetch(new URL(hackclubSearchProxyPath, window.location.href).toString(), requestOptions);
-  if (proxyResponse.status !== 404) {
-    return proxyResponse;
+  const apiKey = state.imageApiKey.trim();
+  if (!apiKey) {
+    throw new Error("Missing Firebase value at image_api_key. Add your Hack Club search API key there, then try again.");
   }
 
-  if (!hackclubSearchApiKey) {
-    return proxyResponse;
-  }
-
-  return fetch(buildHackclubImageSearchUrl(hackclubSearchDirectBase, query).toString(), {
+  return fetch(buildHackclubImageSearchUrl(hackclubSearchBaseUrl, query).toString(), {
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${hackclubSearchApiKey}`,
+      "x-subscription-token": apiKey,
     },
   });
 }
