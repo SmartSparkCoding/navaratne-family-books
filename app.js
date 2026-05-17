@@ -12,8 +12,7 @@ import {
 const appConfig = window.APP_CONFIG ?? {};
 const firebaseConfig = appConfig.firebase ?? {};
 const expectedPasscode = String(appConfig.passcode ?? "0000");
-const hackclubSearchApiKey = String(appConfig.hackclubSearchApiKey ?? appConfig.searchApiKey ?? appConfig.imageSearchApiKey ?? "").trim();
-const hackclubSearchBaseUrl = String(appConfig.hackclubSearchBaseUrl ?? "https://search.hackclub.com").replace(/\/$/, "");
+const hackclubSearchProxyPath = String(appConfig.hackclubSearchProxyPath ?? "api/hackclub/images/search");
 
 const readerNames = ["Sarah", "Leroy", "Jacob", "Ollie", "Grannie"];
 const defaultBookcases = [];
@@ -907,10 +906,7 @@ function createBookForm(mode) {
   ["author", "series", "genre"].forEach((field) => renderChoiceOptions(form, field));
 
   if (autoFindCoverButton) {
-    autoFindCoverButton.disabled = !hackclubSearchApiKey;
-    autoFindCoverButton.title = hackclubSearchApiKey
-      ? "Use Hack Club image search to find a cover from the book title and author."
-      : "Set HACKCLUB_SEARCH_API_KEY in .env to enable automatic cover finding.";
+    autoFindCoverButton.title = "Use Hack Club image search to find a cover from the book title and author.";
   }
 
   shell.insertAdjacentHTML(
@@ -1313,11 +1309,6 @@ function extractBestImageUrl(payload) {
 }
 
 async function autoFindBookCover(form, coverPreview, button) {
-  if (!hackclubSearchApiKey) {
-    showToast("Set HACKCLUB_SEARCH_API_KEY in .env first.");
-    return;
-  }
-
   const query = buildBookCoverQuery(form);
   if (!query.trim()) {
     showToast("Add a title before searching for a cover.");
@@ -1329,21 +1320,26 @@ async function autoFindBookCover(form, coverPreview, button) {
   button.textContent = "Searching...";
 
   try {
-    const endpoint = new URL("/res/v1/images/search", hackclubSearchBaseUrl);
+    const endpoint = new URL(hackclubSearchProxyPath, window.location.href);
     endpoint.searchParams.set("q", query);
     endpoint.searchParams.set("count", "10");
     endpoint.searchParams.set("safesearch", "strict");
 
     const response = await fetch(endpoint.toString(), {
-      headers: {
-        Authorization: `Bearer ${hackclubSearchApiKey}`,
-      },
+      headers: { Accept: "application/json" },
     });
 
-    const payload = await response.json().catch(() => ({}));
+    const rawText = await response.text();
+    let payload = {};
+
+    try {
+      payload = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      payload = { raw: rawText };
+    }
 
     if (!response.ok) {
-      const detail = payload?.error?.detail || payload?.detail || `Search failed with status ${response.status}.`;
+      const detail = payload?.error?.detail || payload?.detail || payload?.error || `Search failed with status ${response.status}.`;
       throw new Error(detail);
     }
 
