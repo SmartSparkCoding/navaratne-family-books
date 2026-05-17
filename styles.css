@@ -1259,6 +1259,38 @@ blockquote {
   animation: toast-in 260ms ease;
 }
 
+.toast.error {
+  cursor: pointer;
+  color: #6b1033;
+  background: linear-gradient(180deg, rgba(255, 244, 248, 0.98), rgba(255, 232, 239, 0.92));
+  border-color: rgba(213, 60, 109, 0.26);
+}
+
+.toast-body {
+  display: grid;
+  gap: 4px;
+}
+
+.toast-body strong {
+  font-size: 0.92rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.toast-body span {
+  line-height: 1.45;
+}
+
+.toast-hint {
+  font-size: 0.78rem;
+  color: rgba(107, 16, 51, 0.8);
+}
+
+.toast-pulse {
+  transform: scale(0.99);
+  box-shadow: 0 0 0 4px rgba(213, 60, 109, 0.08), var(--shadow);
+}
+
 @keyframes toast-in {
   from {
     opacity: 0;

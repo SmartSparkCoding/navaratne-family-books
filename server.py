@@ -122,6 +122,7 @@ class NavaratneHandler(SimpleHTTPRequestHandler):
             payload = json.dumps(
                 {
                     "passcode": config["APP_PASSCODE"],
+                    "hackclubSearchApiKey": config["HACKCLUB_SEARCH_API_KEY"],
                     "firebase": {
                         "apiKey": config["FIREBASE_API_KEY"],
                         "authDomain": config["FIREBASE_AUTH_DOMAIN"],

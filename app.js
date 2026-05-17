@@ -12,7 +12,9 @@ import {
 const appConfig = window.APP_CONFIG ?? {};
 const firebaseConfig = appConfig.firebase ?? {};
 const expectedPasscode = String(appConfig.passcode ?? "0000");
+const hackclubSearchApiKey = String(appConfig.hackclubSearchApiKey ?? "").trim();
 const hackclubSearchProxyPath = String(appConfig.hackclubSearchProxyPath ?? "api/hackclub/images/search");
+const hackclubSearchDirectBase = String(appConfig.hackclubSearchDirectBase ?? "https://search.hackclub.com").replace(/\/$/, "");
 
 const readerNames = ["Sarah", "Leroy", "Jacob", "Ollie", "Grannie"];
 const defaultBookcases = [];
@@ -167,7 +169,7 @@ function initFirebase() {
     });
   } catch (error) {
     state.firebaseReady = false;
-    showToast("Firebase is not ready yet. Check the config values.");
+    showErrorToast("App setup is incomplete: Firebase configuration is missing or invalid.");
     elements.loginStatus.textContent = "Firebase config is missing or incomplete.";
     console.error(error);
   }
@@ -1120,18 +1122,18 @@ function populateBookcaseForm(form, bookcase) {
 
 async function handleReadBookSubmit(form, selectedBookId, selectedBookLabel) {
   if (!state.firebaseReady || !booksRef) {
-    showToast("Firebase is not connected yet.");
+    showErrorToast("Firebase is not connected yet, so this read record cannot be saved.");
     return;
   }
 
   if (!selectedBookId) {
-    showToast("Choose a book first.");
+    showErrorToast("Choose a book first before saving a read record.");
     return;
   }
 
   const selectedReaders = [...form.querySelectorAll('input[name="readers"]:checked')].map((checkbox) => checkbox.value);
   if (!selectedReaders.length) {
-    showToast("Choose at least one reader.");
+    showErrorToast("Choose at least one reader before saving.");
     return;
   }
 
@@ -1152,7 +1154,7 @@ async function handleReadBookSubmit(form, selectedBookId, selectedBookLabel) {
     setView("books");
   } catch (error) {
     console.error(error);
-    showToast("That read-book save did not complete.");
+    showErrorToast("Read record save failed. Check the form and try again.");
   }
 }
 
@@ -1320,14 +1322,7 @@ async function autoFindBookCover(form, coverPreview, button) {
   button.textContent = "Searching...";
 
   try {
-    const endpoint = new URL(hackclubSearchProxyPath, window.location.href);
-    endpoint.searchParams.set("q", query);
-    endpoint.searchParams.set("count", "10");
-    endpoint.searchParams.set("safesearch", "strict");
-
-    const response = await fetch(endpoint.toString(), {
-      headers: { Accept: "application/json" },
-    });
+    const response = await fetchHackclubImageSearch(query);
 
     const rawText = await response.text();
     let payload = {};
@@ -1354,11 +1349,41 @@ async function autoFindBookCover(form, coverPreview, button) {
     showToast("Cover found.");
   } catch (error) {
     console.error(error);
-    showToast(error?.message || "Could not find a cover right now.");
+    showErrorToast(`Cover search failed: ${error?.message || "Could not find a cover right now."}`);
   } finally {
     button.disabled = false;
     button.textContent = originalLabel;
   }
+}
+
+function buildHackclubImageSearchUrl(baseUrl, query) {
+  const endpoint = new URL("/res/v1/images/search", baseUrl);
+  endpoint.searchParams.set("q", query);
+  endpoint.searchParams.set("count", "10");
+  endpoint.searchParams.set("safesearch", "strict");
+  return endpoint;
+}
+
+async function fetchHackclubImageSearch(query) {
+  const requestOptions = {
+    headers: { Accept: "application/json" },
+  };
+
+  const proxyResponse = await fetch(new URL(hackclubSearchProxyPath, window.location.href).toString(), requestOptions);
+  if (proxyResponse.status !== 404) {
+    return proxyResponse;
+  }
+
+  if (!hackclubSearchApiKey) {
+    return proxyResponse;
+  }
+
+  return fetch(buildHackclubImageSearchUrl(hackclubSearchDirectBase, query).toString(), {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${hackclubSearchApiKey}`,
+    },
+  });
 }
 
 function getFormPayload(form) {
@@ -1382,12 +1407,12 @@ function getFormPayload(form) {
 
 async function handleFormSubmit(form, mode) {
   if (!state.firebaseReady || !booksRef) {
-    showToast("Firebase is not connected yet.");
+    showErrorToast("Firebase is not connected yet, so this book cannot be saved.");
     return;
   }
 
   if (!form.elements.name.value.trim() || !form.elements.author.value.trim()) {
-    showToast("Name and author are required.");
+    showErrorToast("Book name and author are required before saving.");
     return;
   }
 
@@ -1413,18 +1438,18 @@ async function handleFormSubmit(form, mode) {
     }
   } catch (error) {
     console.error(error);
-    showToast("That save did not complete.");
+    showErrorToast("Book save failed. Check the form and try again.");
   }
 }
 
 async function handleBookcaseSubmit(form) {
   if (!state.firebaseReady || !bookcasesRef) {
-    showToast("Firebase is not connected yet.");
+    showErrorToast("Firebase is not connected yet, so this shelf cannot be saved.");
     return;
   }
 
   if (!form.elements.name.value.trim()) {
-    showToast("Bookcase name is required.");
+    showErrorToast("Bookcase name is required before saving.");
     return;
   }
 
@@ -1446,7 +1471,7 @@ async function handleBookcaseSubmit(form) {
     renderAddView();
   } catch (error) {
     console.error(error);
-    showToast("That bookcase save did not complete.");
+    showErrorToast("Bookcase save failed. Check the form and try again.");
   }
 }
 
@@ -1460,12 +1485,70 @@ function mountForms() {
   renderAddView();
 }
 
-function showToast(message) {
+function showToast(message, options = {}) {
   const toast = document.createElement("div");
   toast.className = "toast";
-  toast.textContent = message;
+  const isError = Boolean(options.error);
+  if (isError) {
+    toast.classList.add("error");
+    toast.dataset.errorToast = "true";
+  }
+
+  const body = document.createElement("div");
+  body.className = "toast-body";
+
+  const title = document.createElement("strong");
+  title.textContent = isError ? "Error" : "Notice";
+  body.appendChild(title);
+
+  const text = document.createElement("span");
+  text.textContent = message;
+  body.appendChild(text);
+
+  if (isError) {
+    const hint = document.createElement("small");
+    hint.className = "toast-hint";
+    hint.textContent = "Click this error 5 times within 10 seconds to dismiss it.";
+    body.appendChild(hint);
+  }
+
+  toast.appendChild(body);
   elements.toastStack.appendChild(toast);
+
+  if (isError) {
+    enablePersistentErrorToast(toast);
+    return toast;
+  }
+
   window.setTimeout(() => toast.remove(), 2500);
+  return toast;
+}
+
+function showErrorToast(message) {
+  return showToast(message, { error: true });
+}
+
+function enablePersistentErrorToast(toast) {
+  const state = {
+    clicks: [],
+  };
+
+  toast.addEventListener("click", () => {
+    const now = Date.now();
+    state.clicks = state.clicks.filter((timestamp) => now - timestamp <= 10000);
+    state.clicks.push(now);
+
+    toast.dataset.clickCount = String(state.clicks.length);
+    toast.classList.add("toast-pulse");
+    window.clearTimeout(toast._pulseTimer);
+    toast._pulseTimer = window.setTimeout(() => {
+      toast.classList.remove("toast-pulse");
+    }, 180);
+
+    if (state.clicks.length >= 5) {
+      toast.remove();
+    }
+  });
 }
 
 function handleKeypadPress(value, action) {

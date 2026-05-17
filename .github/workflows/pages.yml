@@ -32,6 +32,7 @@ jobs:
           cat > _site/config.js <<EOF
           window.APP_CONFIG = {
             passcode: ${APP_PASSCODE_JSON},
+            hackclubSearchApiKey: ${HACKCLUB_SEARCH_API_KEY_JSON},
             firebase: {
               apiKey: ${FIREBASE_API_KEY_JSON},
               authDomain: ${FIREBASE_AUTH_DOMAIN_JSON},
@@ -45,6 +46,7 @@ jobs:
           EOF
         env:
           APP_PASSCODE_JSON: ${{ toJSON(vars.APP_PASSCODE || secrets.APP_PASSCODE || '0000') }}
+          HACKCLUB_SEARCH_API_KEY_JSON: ${{ toJSON(vars.HACKCLUB_SEARCH_API_KEY || secrets.HACKCLUB_SEARCH_API_KEY || '') }}
           FIREBASE_API_KEY_JSON: ${{ toJSON(vars.FIREBASE_API_KEY || secrets.FIREBASE_API_KEY || '') }}
           FIREBASE_AUTH_DOMAIN_JSON: ${{ toJSON(vars.FIREBASE_AUTH_DOMAIN || secrets.FIREBASE_AUTH_DOMAIN || '') }}
           FIREBASE_DATABASE_URL_JSON: ${{ toJSON(vars.FIREBASE_DATABASE_URL || secrets.FIREBASE_DATABASE_URL || '') }}

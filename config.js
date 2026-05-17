@@ -1,5 +1,6 @@
 window.APP_CONFIG = {
   passcode: "0000",
+  hackclubSearchApiKey: "",
   firebase: {
     apiKey: "AIzaSyDrBKFVbRjCNktCmjrv-bI5OSSSj41T4iI",
     authDomain: "navaratne-books.firebaseapp.com",
