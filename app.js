@@ -54,6 +54,11 @@ const state = {
   selectedReader: readerNames[0],
   addRenderedMode: null,
   currentQuote: null,
+  choiceData: {
+    author: [],
+    series: [],
+    genre: [],
+  },
 };
 
 const elements = {
@@ -84,6 +89,12 @@ const elements = {
   readerStatsGrid: document.getElementById("readerStatsGrid"),
   readerModal: document.getElementById("readerModal"),
   readerModalContent: document.getElementById("readerModalContent"),
+  choiceModal: document.getElementById("choiceModal"),
+  choiceForm: document.getElementById("choiceForm"),
+  choiceInput: document.getElementById("choiceInput"),
+  choiceModalTitle: document.getElementById("choiceModalTitle"),
+  choiceModalCopy: document.getElementById("choiceModalCopy"),
+  choiceModalLabel: document.getElementById("choiceModalLabel"),
   bookModal: document.getElementById("bookModal"),
   bookDetailSummary: document.getElementById("bookDetailSummary"),
   editFormMount: document.getElementById("editFormMount"),
@@ -97,8 +108,14 @@ const palette = ["#f2bac3", "#f6d39a", "#79b6af", "#c7c0f0", "#f0b79b", "#a8d8c7
 let database = null;
 let booksRef = null;
 let bookcasesRef = null;
+let authorsRef = null;
+let seriesRef = null;
+let genresRef = null;
 let editForm = null;
+let addForm = null;
 let bookcaseForm = null;
+let activeChoiceField = null;
+let activeChoiceForm = null;
 
 function initFirebase() {
   try {
@@ -110,6 +127,9 @@ function initFirebase() {
     database = getDatabase(app);
     booksRef = ref(database, "books");
     bookcasesRef = ref(database, "bookcases");
+    authorsRef = ref(database, "authors");
+    seriesRef = ref(database, "series");
+    genresRef = ref(database, "genres");
     state.firebaseReady = true;
 
     onValue(booksRef, (snapshot) => {
@@ -124,6 +144,24 @@ function initFirebase() {
       }));
       state.bookcases = loaded.length ? loaded.sort((a, b) => a.order - b.order) : defaultBookcases;
       syncAllBookcaseSelects();
+      refreshAll();
+    });
+
+    onValue(authorsRef, (snapshot) => {
+      state.choiceData.author = snapshotToArray(snapshot.val()).map((entry) => String(entry.name ?? "").trim()).filter(Boolean);
+      syncChoiceFields();
+      refreshAll();
+    });
+
+    onValue(seriesRef, (snapshot) => {
+      state.choiceData.series = snapshotToArray(snapshot.val()).map((entry) => String(entry.name ?? "").trim()).filter(Boolean);
+      syncChoiceFields();
+      refreshAll();
+    });
+
+    onValue(genresRef, (snapshot) => {
+      state.choiceData.genre = snapshotToArray(snapshot.val()).map((entry) => String(entry.name ?? "").trim()).filter(Boolean);
+      syncChoiceFields();
       refreshAll();
     });
   } catch (error) {
@@ -267,6 +305,10 @@ function createBookcaseCoverMarkup(bookcase) {
 }
 
 function getBookcaseAccent(bookcase) {
+  if (bookcase?.note === "Auto-detected shelf" || bookcase?.id === "unsorted") {
+    return "#ff4fc3";
+  }
+
   return bookcase?.accent || pickColor(bookcase?.name || bookcase?.id || "bookcase");
 }
 
@@ -289,6 +331,116 @@ function getBookcaseOptions() {
   });
 
   return [...derived.values()].sort((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0));
+}
+
+function normalizeChoiceValue(value) {
+  return String(value ?? "").trim();
+}
+
+function getChoiceValues(field) {
+  const fromBooks = state.books.map((book) => normalizeChoiceValue(book[field])).filter(Boolean);
+  const fromDb = state.choiceData[field] || [];
+  return [...new Set([...fromDb, ...fromBooks])].sort((left, right) => left.localeCompare(right));
+}
+
+function renderChoiceOptions(form, field) {
+  const select = form?.elements?.[field];
+  if (!select) {
+    return;
+  }
+
+  const currentValue = select.value;
+  select.innerHTML = [
+    `<option value="">Not set</option>`,
+    ...getChoiceValues(field).map((value) => `<option value="${safeText(value)}">${safeText(value)}</option>`),
+  ].join("");
+
+  if (currentValue) {
+    select.value = currentValue;
+  }
+}
+
+function syncChoiceFields() {
+  [addForm, editForm].filter(Boolean).forEach((form) => {
+    ["author", "series", "genre"].forEach((field) => renderChoiceOptions(form, field));
+  });
+}
+
+function openChoiceModal(field, form) {
+  activeChoiceField = field;
+  activeChoiceForm = form;
+
+  const labels = {
+    author: "Author",
+    series: "Series",
+    genre: "Genre",
+  };
+
+  elements.choiceModalTitle.textContent = `Add new ${labels[field].toLowerCase()}`;
+  elements.choiceModalCopy.textContent = `Create a new ${labels[field].toLowerCase()} and it will appear in the dropdown.`;
+  elements.choiceModalLabel.textContent = labels[field];
+  elements.choiceInput.value = "";
+  elements.choiceModal.classList.remove("hidden");
+  elements.choiceModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => elements.choiceInput.focus(), 0);
+}
+
+function closeChoiceModal() {
+  activeChoiceField = null;
+  activeChoiceForm = null;
+  elements.choiceModal.classList.add("hidden");
+  elements.choiceModal.setAttribute("aria-hidden", "true");
+}
+
+async function handleChoiceSubmit(event) {
+  event.preventDefault();
+
+  if (!state.firebaseReady) {
+    showToast("Firebase is not connected yet.");
+    return;
+  }
+
+  if (!activeChoiceField) {
+    return;
+  }
+
+  const value = normalizeChoiceValue(elements.choiceInput.value);
+  if (!value) {
+    showToast("Enter a value first.");
+    return;
+  }
+
+  if (getChoiceValues(activeChoiceField).some((entry) => entry.toLowerCase() === value.toLowerCase())) {
+    showToast(`${value} already exists.`);
+    if (activeChoiceForm?.elements?.[activeChoiceField]) {
+      activeChoiceForm.elements[activeChoiceField].value = value;
+    }
+    closeChoiceModal();
+    return;
+  }
+
+  const targetRef = activeChoiceField === "author" ? authorsRef : activeChoiceField === "series" ? seriesRef : genresRef;
+
+  try {
+    if (!targetRef) {
+      throw new Error("Missing option collection.");
+    }
+
+    await set(push(targetRef), {
+      name: value,
+      createdAt: new Date().toISOString(),
+    });
+
+    if (activeChoiceForm?.elements?.[activeChoiceField]) {
+      activeChoiceForm.elements[activeChoiceField].value = value;
+    }
+
+    showToast(`${value} added.`);
+    closeChoiceModal();
+  } catch (error) {
+    console.error(error);
+    showToast("That new option did not save.");
+  }
 }
 
 function bookDetails(book) {
@@ -491,13 +643,15 @@ function groupBooksByBookcase(books) {
 function renderBookCard(book, accent) {
   const readers = normalizeReaders(book.readers);
   const label = getBookcaseLabel(book.bookcaseId);
+  const extraMeta = [book.series, book.genre].filter(Boolean).join(" · ");
 
   return `
     <article class="book-card" style="--bookcase-accent:${accent || pickColor(label)}" data-book-id="${safeText(book.id)}" tabindex="0" role="button" aria-label="Open ${safeText(book.name)}">
       <div class="book-cover">${createCoverMarkup(book)}</div>
-      <div>
+      <div class="book-copy">
         <h4>${safeText(book.name)}</h4>
         <p class="book-meta">${safeText(book.author)}</p>
+        ${extraMeta ? `<p class="book-meta book-meta-subtle">${safeText(extraMeta)}</p>` : ""}
       </div>
       <div class="pill-row">
         <span class="pill">${safeText(label)}</span>
@@ -632,6 +786,7 @@ function openAddWorkspace(mode) {
 function renderAddWorkspace(mode) {
   state.addRenderedMode = mode;
   if (mode === "bookcase") {
+    addForm = null;
     const { element, form, coverPreview } = createBookcaseForm();
     bookcaseForm = form;
     elements.addWorkspace.replaceChildren(element);
@@ -641,6 +796,7 @@ function renderAddWorkspace(mode) {
   }
 
   if (mode === "read") {
+    addForm = null;
     const { element, form } = createReadBookForm();
     elements.addWorkspace.replaceChildren(element);
     form.reset();
@@ -649,6 +805,7 @@ function renderAddWorkspace(mode) {
 
   const { element, form, coverPreview } = createBookForm(mode);
   editForm = null;
+  addForm = form;
   elements.addWorkspace.replaceChildren(element);
   populateForm(form, {});
   updateCoverPreview(coverPreview, "", "");
@@ -744,6 +901,7 @@ function createBookForm(mode) {
   resetButton.textContent = mode === "edit" ? "Revert" : "Clear form";
 
   renderBookcaseOptions(form);
+  ["author", "series", "genre"].forEach((field) => renderChoiceOptions(form, field));
 
   shell.insertAdjacentHTML(
     "afterbegin",
@@ -782,6 +940,15 @@ function createBookForm(mode) {
         updateCoverPreview(coverPreview, coverInput.value, form.elements.name.value || original.name);
       }
     }
+  });
+
+  shell.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-add-choice]");
+    if (!button) {
+      return;
+    }
+
+    openChoiceModal(button.dataset.addChoice, form);
   });
 
   return { element: shell, form, coverPreview };
@@ -1008,6 +1175,8 @@ function syncAllBookcaseSelects() {
     }
   });
 
+  syncChoiceFields();
+
   elements.bookcaseFilter.innerHTML = [
     `<option value="all">All bookcases</option>`,
     ...getBookcaseOptions().map((bookcase) => `<option value="${safeText(bookcase.id)}">${safeText(bookcase.name)}</option>`),
@@ -1036,6 +1205,8 @@ function populateForm(form, book) {
   form.querySelectorAll('input[name="readers"]').forEach((checkbox) => {
     checkbox.checked = selectedReaders.has(checkbox.value);
   });
+
+  ["author", "series", "genre"].forEach((field) => renderChoiceOptions(form, field));
 
   const coverPreview = form.querySelector("[data-cover-preview]");
   updateCoverPreview(coverPreview, form.elements.coverImage.value, form.elements.name.value);
@@ -1151,6 +1322,7 @@ async function handleBookcaseSubmit(form) {
 function mountForms() {
   const edit = createBookForm("edit");
   editForm = edit.form;
+  addForm = null;
   elements.editFormMount.replaceChildren(edit.element);
   populateForm(editForm, {});
   updateCoverPreview(edit.coverPreview, "", "");
@@ -1296,9 +1468,22 @@ function bindEvents() {
     }
   });
 
+  elements.choiceModal.addEventListener("click", (event) => {
+    if (event.target.matches("[data-close-choice-modal]")) {
+      closeChoiceModal();
+    }
+  });
+
+  elements.choiceForm.addEventListener("submit", handleChoiceSubmit);
+
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.quickAddMenu.classList.contains("hidden")) {
       closeAddMenu();
+      return;
+    }
+
+    if (event.key === "Escape" && !elements.choiceModal.classList.contains("hidden")) {
+      closeChoiceModal();
       return;
     }
 

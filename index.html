@@ -181,6 +181,28 @@
     </div>
   </div>
 
+  <div class="modal hidden" id="choiceModal" aria-hidden="true">
+    <button class="modal-backdrop" type="button" data-close-choice-modal aria-label="Close add-new dialog"></button>
+    <div class="modal-card panel choice-modal-card">
+      <button class="icon-btn modal-close" type="button" data-close-choice-modal aria-label="Close">×</button>
+      <div class="form-copy">
+        <p class="eyebrow" id="choiceModalKicker">Add new</p>
+        <h3 id="choiceModalTitle">Create a new option</h3>
+        <p class="panel-meta" id="choiceModalCopy">Add a value, then pick it from the dropdown.</p>
+      </div>
+      <form class="choice-form" id="choiceForm" novalidate>
+        <label>
+          <span id="choiceModalLabel">Name</span>
+          <input id="choiceInput" name="choiceName" type="text" maxlength="120" required />
+        </label>
+        <div class="form-actions">
+          <button class="secondary-btn" type="button" data-close-choice-modal>Cancel</button>
+          <button class="primary-btn" type="submit">Add new</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
   <div class="quick-add-menu hidden" id="quickAddMenu" aria-hidden="true">
@@ -210,13 +232,15 @@
             <span>Name *</span>
             <input name="name" type="text" required maxlength="120" />
           </label>
-          <label>
+          <label class="choice-field">
             <span>Author *</span>
-            <input name="author" type="text" required maxlength="120" />
+            <select name="author" required></select>
+            <button type="button" class="secondary-btn choice-add-btn" data-add-choice="author">Add New</button>
           </label>
-          <label>
+          <label class="choice-field">
             <span>Series</span>
-            <input name="series" type="text" maxlength="120" />
+            <select name="series"></select>
+            <button type="button" class="secondary-btn choice-add-btn" data-add-choice="series">Add New</button>
           </label>
           <label>
             <span>Bookcase</span>
@@ -230,9 +254,10 @@
             <span>Date read</span>
             <input name="dateRead" type="date" />
           </label>
-          <label>
+          <label class="choice-field">
             <span>Genre</span>
-            <input name="genre" type="text" maxlength="80" />
+            <select name="genre"></select>
+            <button type="button" class="secondary-btn choice-add-btn" data-add-choice="genre">Add New</button>
           </label>
           <label>
             <span>ISBN</span>
