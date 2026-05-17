@@ -1,0 +1,20 @@
+{
+  "name": "Navaratne Family Books",
+  "short_name": "Navaratne Books",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f2ec",
+  "theme_color": "#79b6af",
+  "icons": [
+    {
+      "src": "assets/logo.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "assets/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

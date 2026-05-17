@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Navaratne Books logo">
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#79b6af" />
+      <stop offset="100%" stop-color="#f6d39a" />
+    </linearGradient>
+    <linearGradient id="g2" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ff9ed8" />
+      <stop offset="100%" stop-color="#ff4fc3" />
+    </linearGradient>
+  </defs>
+
+  <!-- rounded-square background -->
+  <rect width="512" height="512" rx="74" ry="74" fill="url(#g1)" />
+
+  <!-- subtle inner white card -->
+  <rect x="48" y="48" width="416" height="416" rx="54" ry="54" fill="rgba(255,255,255,0.9)" />
+
+  <!-- three pastel bars (like a small bar chart) -->
+  <g transform="translate(120,120)">
+    <rect x="0" y="160" width="56" height="120" rx="10" fill="url(#g2)" />
+    <rect x="84" y="120" width="56" height="160" rx="10" fill="#a8d8c7" />
+    <rect x="168" y="80" width="56" height="200" rx="10" fill="#f0b79b" />
+  </g>
+
+  <!-- small NB monogram in bottom-right -->
+  <g transform="translate(320,320) scale(0.9)" fill="#27424b" font-family="Fraunces, serif" font-weight="700">
+    <text x="0" y="36" font-size="48">NB</text>
+  </g>
+</svg>
